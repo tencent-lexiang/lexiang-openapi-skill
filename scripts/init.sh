@@ -1,27 +1,27 @@
 #!/bin/bash
 # 乐享知识库凭证加载和 Token 获取脚本
-# 优先级：环境变量 > clawdbot.json (env) > ~/.config/lexiang/credentials
+# 优先级：环境变量 > openclaw.json (env) > ~/.config/lexiang/credentials
 #
 # 使用方式：source scripts/init.sh
 # 执行后可使用 $LEXIANG_TOKEN 和 $LEXIANG_STAFF_ID 变量
 
-# 1. 检查环境变量（clawdbot 会自动从 env 字段注入）
+# 1. 检查环境变量（openclaw 会自动从 env 字段注入）
 if [ -n "$LEXIANG_APP_KEY" ] && [ -n "$LEXIANG_APP_SECRET" ]; then
   echo "使用环境变量中的凭证"
   if [ -z "$LEXIANG_STAFF_ID" ]; then
-    if [ -f ~/.clawdbot/clawdbot.json ]; then
-      STAFF_ID=$(jq -r '.skills.entries.lexiang.env.LEXIANG_STAFF_ID // empty' ~/.clawdbot/clawdbot.json 2>/dev/null)
+    if [ -f ~/.openclaw/openclaw.json ]; then
+      STAFF_ID=$(jq -r '.skills.entries.lexiang.env.LEXIANG_STAFF_ID // empty' ~/.openclaw/openclaw.json 2>/dev/null)
       if [ -n "$STAFF_ID" ]; then
         export LEXIANG_STAFF_ID="$STAFF_ID"
       fi
     fi
   fi
 
-# 2. 检查 clawdbot.json 的 env 配置
-elif [ -f ~/.clawdbot/clawdbot.json ]; then
-  APP_KEY=$(jq -r '.skills.entries.lexiang.env.LEXIANG_APP_KEY // empty' ~/.clawdbot/clawdbot.json 2>/dev/null)
-  APP_SECRET=$(jq -r '.skills.entries.lexiang.env.LEXIANG_APP_SECRET // empty' ~/.clawdbot/clawdbot.json 2>/dev/null)
-  STAFF_ID=$(jq -r '.skills.entries.lexiang.env.LEXIANG_STAFF_ID // empty' ~/.clawdbot/clawdbot.json 2>/dev/null)
+# 2. 检查 openclaw.json 的 env 配置
+elif [ -f ~/.openclaw/openclaw.json ]; then
+  APP_KEY=$(jq -r '.skills.entries.lexiang.env.LEXIANG_APP_KEY // empty' ~/.openclaw/openclaw.json 2>/dev/null)
+  APP_SECRET=$(jq -r '.skills.entries.lexiang.env.LEXIANG_APP_SECRET // empty' ~/.openclaw/openclaw.json 2>/dev/null)
+  STAFF_ID=$(jq -r '.skills.entries.lexiang.env.LEXIANG_STAFF_ID // empty' ~/.openclaw/openclaw.json 2>/dev/null)
   
   if [ -n "$APP_KEY" ] && [ -n "$APP_SECRET" ]; then
     export LEXIANG_APP_KEY="$APP_KEY"
@@ -29,7 +29,7 @@ elif [ -f ~/.clawdbot/clawdbot.json ]; then
     if [ -n "$STAFF_ID" ]; then
       export LEXIANG_STAFF_ID="$STAFF_ID"
     fi
-    echo "使用 ~/.clawdbot/clawdbot.json 中的凭证"
+    echo "使用 ~/.openclaw/openclaw.json 中的凭证"
   fi
 
 # 3. 检查独立配置文件
@@ -48,7 +48,7 @@ fi
 if [ -z "$LEXIANG_APP_KEY" ] || [ -z "$LEXIANG_APP_SECRET" ]; then
   echo "错误：未找到乐享凭证，请配置以下任一方式："
   echo "  1. 设置环境变量 LEXIANG_APP_KEY 和 LEXIANG_APP_SECRET"
-  echo "  2. 在 ~/.clawdbot/clawdbot.json 中配置 skills.entries.lexiang.env"
+  echo "  2. 在 ~/.openclaw/openclaw.json 中配置 skills.entries.lexiang.env"
   echo "  3. 创建 ~/.config/lexiang/credentials 文件"
   return 1 2>/dev/null || exit 1
 fi

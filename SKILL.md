@@ -2,7 +2,7 @@
 name: lexiang
 description: 腾讯乐享知识库 API 集成。提供团队、知识库、知识节点、在线文档块的完整 CRUD 操作，以及通讯录管理、AI 搜索/问答、文件上传、任务管理等功能。此 skill 适用于需要通过 API 管理乐享知识库内容（创建/查询/编辑文档、搜索知识、管理团队权限等）的场景。
 homepage: https://lexiang.tencent.com/wiki/api/
-metadata: {"clawdbot":{"emoji":"📚"}}
+metadata: {"openclaw":{"emoji":"📚"}}
 ---
 
 # 腾讯乐享知识库 API
@@ -41,7 +41,7 @@ export LEXIANG_STAFF_ID="your_staff_id"  # 写操作必需
 
 ### 凭证配置优先级
 1. 环境变量（最高优先级）
-2. `~/.clawdbot/clawdbot.json` 中的 `skills.entries.lexiang.env` 字段
+2. `~/.openclaw/openclaw.json` 中的 `skills.entries.lexiang.env` 字段
 3. `~/.config/lexiang/credentials` JSON 文件
 
 ### 初始化（加载凭证 + 获取 Token）

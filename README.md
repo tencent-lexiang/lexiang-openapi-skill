@@ -11,7 +11,6 @@
 - **多源多模态知识管理**：支持 102+ 种文件格式（文档、表格、PPT、PDF、视频、音频、图片等），一键导入 Confluence、iWiki、腾讯文档、公众号文章、腾讯会议录制等多平台内容
 - **AI 智能问答**：基于 DeepSeek-R1 的企业级 RAG 问答，准确率 92.1%，幻觉率低至 2.64%，支持多知识域、联网搜索、视频/表格深度解析
 - **AI 创作工具**：智能生成 PPT、思维导图、知识图解，支持学习模式渐进掌握知识
-- **AI 评审**：自动检查文档质量，支持智能纠错、合规检查、方案生成，可配置企业专属评审标准
 - **企业级安全**：四级权限隔离，7 项国际合规认证，支持私有化部署
 - **开放生态**：240+ API 接口，深度集成企业微信、腾讯会议、腾讯文档，支持 MCP 协议对接 AI Agent
 
@@ -43,10 +42,10 @@
 # 通过 CodeBuddy Skill 市场搜索 "lexiang" 安装
 ```
 
-### 方式二：Clawdbot 安装
+### 方式二：OpenClaw 安装
 
 ```bash
-clawdbot skills install github:ajaxhe/lexiang-skill
+openclaw skills install github:tencent-lexiang/lexiang-skill
 ```
 
 ### 方式三：手动集成
@@ -125,7 +124,6 @@ MIT
 - **Multi-source & Multi-modal Knowledge Management**: Supports 102+ file formats (documents, spreadsheets, PPT, PDF, video, audio, images, etc.), with one-click import from Confluence, iWiki, Tencent Docs, WeChat articles, Tencent Meeting recordings, and more
 - **AI-Powered Q&A**: Enterprise-grade RAG Q&A powered by DeepSeek-R1, with 92.1% accuracy and only 2.64% hallucination rate. Supports multi-knowledge-domain queries, web search, and deep analysis of video/spreadsheet content
 - **AI Creation Tools**: Intelligent generation of PPT, mind maps, and knowledge infographics, with a guided learning mode for progressive knowledge mastery
-- **AI Review**: Automated document quality checks with intelligent proofreading, compliance review, and customizable enterprise review standards
 - **Enterprise Security**: 4-tier permission isolation, 7 international compliance certifications, with private deployment support
 - **Open Ecosystem**: 240+ API endpoints, deep integration with WeCom, Tencent Meeting, and Tencent Docs, with MCP protocol support for AI Agent connectivity
 
@@ -157,10 +155,10 @@ This Skill provides AI Agents with full API integration for Tencent Lexiang Know
 # Search for "lexiang" in CodeBuddy Skill marketplace
 ```
 
-### Option 2: Clawdbot Installation
+### Option 2: OpenClaw Installation
 
 ```bash
-clawdbot skills install github:ajaxhe/lexiang-skill
+openclaw skills install github:tencent-lexiang/lexiang-skill
 ```
 
 ### Option 3: Manual Integration
