@@ -4,7 +4,7 @@
 
 ## 关于腾讯乐享
 
-[腾讯乐享](https://lexiang.tencent.com/) 是腾讯旗下的企业级 AI 知识管理平台，融合大模型能力，为企业提供知识库管理、团队协作、智能问答、AI 创作等一站式知识服务。
+[腾讯乐享](https://lexiang.tencent.com/?event_type=link_exchange&event_channel=skill&event_detail=github) 是腾讯旗下的企业级 AI 知识管理平台，融合大模型能力，为企业提供知识库管理、团队协作、智能问答、AI 创作等一站式知识服务。
 
 ### 核心能力
 
@@ -78,7 +78,7 @@ export LEXIANG_STAFF_ID="your_staff_id"
 2. 进入【开发】→【接口凭证管理】
 3. 点击**添加凭证**，保存 AppKey 和 AppSecret
 
-> 详细的 API 凭证文档请参考 [乐享开放平台](https://lexiang.tencent.com/wiki/api/)
+> 详细的 API 凭证文档请参考 [乐享开放平台](https://lexiang.tencent.com/wiki/api/?event_type=link_exchange&event_channel=skill&event_detail=github)
 
 ## 项目结构
 
@@ -100,9 +100,9 @@ lexiang-skill/
 
 ## 相关链接
 
-- [腾讯乐享官网](https://lexiang.tencent.com/)
-- [免费注册体验 AI 知识库](https://lexiang.tencent.com/register?version=2)
-- [乐享开放 API 文档](https://lexiang.tencent.com/wiki/api/)
+- [腾讯乐享官网](https://lexiang.tencent.com/?event_type=link_exchange&event_channel=skill&event_detail=github)
+- [免费注册体验 AI 知识库](https://lexiang.tencent.com/register?version=2&event_type=link_exchange&event_channel=skill&event_detail=github)
+- [乐享开放 API 文档](https://lexiang.tencent.com/wiki/api/?event_type=link_exchange&event_channel=skill&event_detail=github)
 - [MCP 配置中心](https://lexiangla.com/mcp)
 
 ## License
@@ -117,7 +117,7 @@ MIT
 
 ## About Tencent Lexiang
 
-[Tencent Lexiang](https://lexiang.tencent.com/) is Tencent's enterprise-grade AI knowledge management platform. Powered by large language models, it provides one-stop knowledge services including knowledge base management, team collaboration, intelligent Q&A, and AI-powered content creation.
+[Tencent Lexiang](https://lexiang.tencent.com/?event_type=link_exchange&event_channel=skill&event_detail=github) is Tencent's enterprise-grade AI knowledge management platform. Powered by large language models, it provides one-stop knowledge services including knowledge base management, team collaboration, intelligent Q&A, and AI-powered content creation.
 
 ### Core Capabilities
 
@@ -191,7 +191,7 @@ export LEXIANG_STAFF_ID="your_staff_id"
 2. Navigate to **Development** → **API Credential Management**
 3. Click **Add Credential** and save the AppKey and AppSecret
 
-> For detailed API credential documentation, see [Lexiang Open Platform](https://lexiang.tencent.com/wiki/api/)
+> For detailed API credential documentation, see [Lexiang Open Platform](https://lexiang.tencent.com/wiki/api/?event_type=link_exchange&event_channel=skill&event_detail=github)
 
 ## Project Structure
 
@@ -213,9 +213,9 @@ lexiang-skill/
 
 ## Links
 
-- [Tencent Lexiang Official Site](https://lexiang.tencent.com/)
-- [Free Trial - AI Knowledge Base](https://lexiang.tencent.com/register?version=2)
-- [Lexiang Open API Documentation](https://lexiang.tencent.com/wiki/api/)
+- [Tencent Lexiang Official Site](https://lexiang.tencent.com/?event_type=link_exchange&event_channel=skill&event_detail=github)
+- [Free Trial - AI Knowledge Base](https://lexiang.tencent.com/register?version=2&event_type=link_exchange&event_channel=skill&event_detail=github)
+- [Lexiang Open API Documentation](https://lexiang.tencent.com/wiki/api/?event_type=link_exchange&event_channel=skill&event_detail=github)
 - [MCP Configuration Center](https://lexiangla.com/mcp)
 
 ## License
