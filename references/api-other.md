@@ -120,22 +120,6 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/ai/qa" \
 ```
 > `research=true` 使用专业研究模式
 
-### 知识解析
-```bash
-# 获取知识解析结果
-curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/parsed-content" \
-  -H "Authorization: Bearer $LEXIANG_TOKEN"
-
-# 获取知识解析切片（用于 Embedding，返回 jsonl 下载地址，有效期60分钟）
-curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/chunked-content" \
-  -H "Authorization: Bearer $LEXIANG_TOKEN"
-
-# 获取附件解析结果/切片
-curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/files/{file_id}/parsed-content" \
-  -H "Authorization: Bearer $LEXIANG_TOKEN"
-curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/files/{file_id}/chunked-content" \
-  -H "Authorization: Bearer $LEXIANG_TOKEN"
-```
 
 ## 五、素材管理（文件上传三步流程）
 
