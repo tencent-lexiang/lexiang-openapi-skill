@@ -22,15 +22,23 @@ disable: false
 
 ## URL 规则
 
-生成知识库链接时，必须使用企业专属域名（如 `csig.lexiangla.com`），**禁止使用** `https://lexiang.tencent.com/wiki/{id}` 格式。
+生成知识库链接时，**必须使用 `lexiangla.com` 域名 + `company_from` 参数**，否则链接无法打开。
+
+**禁止使用**的格式：
+- `https://csig.lexiangla.com/pages/{id}`（缺少 company_from，无法打开）
+- `https://lexiang.tencent.com/wiki/{id}`（内部地址，外部无法访问）
+
+**正确的链接格式**：
 
 | 资源类型 | URL 格式 |
 |---------|----------|
-| 团队首页 | `https://{domain}/t/{team_id}/spaces` |
-| 知识库 | `https://{domain}/spaces/{space_id}` |
-| 知识条目 | `https://{domain}/pages/{entry_id}` |
+| 团队首页 | `https://lexiangla.com/t/{team_id}/spaces?company_from={company_from}` |
+| 知识库 | `https://lexiangla.com/spaces/{space_id}?company_from={company_from}` |
+| 知识条目 | `https://lexiangla.com/pages/{entry_id}?company_from={company_from}` |
 
-优先使用 API 响应中的 `links` 字段；如果 API 未返回完整链接，根据上述规则拼接。
+> `company_from` 参数是企业标识，不同企业值不同。可从用户之前分享的乐享链接中提取，或在首次使用时询问用户。
+
+优先使用 API 响应中的 `links` 字段；如果 API 未返回完整链接，根据上述规则拼接（**不要忘记 `company_from` 参数**）。
 
 ## 凭证配置
 
@@ -216,6 +224,70 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/ai/qa" \
 | 嵌套块创建失败 | 缺少关联 | 确保 `children` + `block_id` 配对 |
 | file name 缺少后缀 | name 字段无扩展名 | 添加 `.md`、`.png` 等后缀 |
 | 上传接口 404 | 旧版路径 | 使用 `/v1/kb/files/upload-params` |
+| 属性设置静默失败 | value 传了选项 key 而非文本值 | value 数组中传选项的**显示文本**（如 `"互联网参考"`），不是 key（如 `c0jp3b6qyh`）。传 key 返回 200 但值为空 |
+| 属性设置 400 错误 | 请求体格式不对 | 必须使用 JSON:API 格式：`{"data":{"type":"kb_entry","attributes":{"属性ID":{"value":["选项文本"]}}}}` |
+| PATCH 重命名 404 | 文件类型条目不支持 PATCH 重命名 | file 类型条目创建后名称无法通过 API 修改，需在上传时就使用正确的文件名（`upload_file.sh` 会用文件的本地文件名） |
+
+## 经验案例
+
+### 知识库跨库迁移
+
+**场景**：将一个知识库（Space）的全部内容（文件夹结构 + 文件 + 在线文档）迁移到另一个知识库。
+
+**核心挑战**：乐享 API **没有**原生的 move/copy 接口，必须手动遍历 → 重建目录 → 下载/上传。
+
+**迁移流程**：
+
+1. **遍历源知识库目录结构**：`GET /kb/entries?space_id=SOURCE&limit=50`，逐层获取 folder 和子条目
+2. **在目标知识库创建同名文件夹**：`POST /kb/entries`，`entry_type: "folder"`
+3. **按条目类型分别处理**：
+   - `file` 类型：从 `data.links.download` 获取下载链接 → 下载到本地 → 通过三步上传流程（获取凭证 → 上传 COS → 创建条目）重新上传到目标文件夹
+   - `page` 类型：通过 content API 获取 HTML → 解析为 blocks → 写入目标页面
+
+**踩坑记录**：
+
+| 问题 | 原因 | 解决方案 |
+|------|------|---------|
+| **page 内容为空** | 创建 page 条目后没有写入内容块。`POST /kb/entries` 只创建空页面壳，内容需要额外通过 blocks API 写入 | 用 `GET /kb/entries/{id}/content?content_type=html` 获取源页面 HTML，解析后用 `POST /kb/page/entries/{id}/blocks/descendant` 写入目标页面 |
+| **上传凭证解析错误** | `Bucket`/`Region` 在响应的 `options` 层级，而非 `object` 层级；`key`/`state`/`auth` 在 `object` 层级 | 上传凭证响应结构：`options.Bucket`、`options.Region`、`object.key`、`object.state`、`object.auth.Authorization`、`object.auth.XCosSecurityToken` |
+| **文件下载链接取错** | 文件下载链接在 `data.links.download`，而非 `included` 中 | 优先从 `data.links.download` 获取，`included` 中的 `kb_file` 链接作为备选 |
+| **文件名缺少扩展名** | 条目 `name` 字段不一定包含扩展名 | 从下载 URL 的路径中解析扩展名（`os.path.splitext(urlparse(url).path)[1]`），补到文件名末尾 |
+
+**HTML → Blocks 转换要点**：
+
+乐享在线文档的 HTML 使用 `lx-*` 类名标识块类型（如 `<p class="lx-p">`、`<h2 class="lx-h2">`）。转换时：
+- 段落（`p`）→ `{"block_type": "p", "text": {"elements": [...]}}`
+- 标题（`h1`-`h5`）→ `{"block_type": "h2", "heading2": {"elements": [...]}}`（注意字段名是 `heading{N}` 不是 `text`）
+- 内联样式通过 `<b>`/`<i>`/`<u>`/`<span style="...">` 映射到 `text_style`
+- 空段落可跳过不写入
+- 块数较多时分批写入（建议每批 ≤ 20 个块）
+
+### 自定义属性设置
+
+**场景**：为知识条目设置自定义属性（如"内容性质"、"内容来源"），便于 Agent 按类型过滤检索。
+
+**正确的 API 调用方式**：
+
+```bash
+# 获取条目当前属性值
+curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/properties/values" \
+  -H "Authorization: Bearer $LEXIANG_TOKEN"
+
+# 设置属性值（必须使用 JSON:API 格式）
+curl -X PUT "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/properties/values" \
+  -H "Authorization: Bearer $LEXIANG_TOKEN" \
+  -H "x-staff-id: $LEXIANG_STAFF_ID" \
+  -H "Content-Type: application/json; charset=utf-8" \
+  -d '{"data":{"type":"kb_entry","attributes":{"属性ID":{"value":["选项显示文本"]}}}}'
+```
+
+**踩坑记录**：
+
+| 问题 | 原因 | 解决方案 |
+|------|------|---------|
+| PUT 返回 200 但属性值为空 | `value` 传了选项的 key（如 `c0jp3b6qyh`） | 改为传选项的**显示文本**（如 `"互联网参考"`）|
+| PUT 返回 400 `data/data.attributes 不能为空` | 请求体用了 `{"properties": [...]}` 格式 | 必须用 JSON:API 格式：`{"data":{"type":"kb_entry","attributes":{...}}}` |
+| 属性 ID 和选项 key 的区别 | 属性 ID 是属性本身的 UUID，选项 key 是选项的标识符 | GET `/kb/properties/{id}` 获取属性详情和选项列表 |
 
 ## 详细 API 参考
 
