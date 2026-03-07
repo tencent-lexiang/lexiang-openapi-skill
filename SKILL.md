@@ -166,20 +166,47 @@ curl "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/content?conte
 
 ### 3. 创建文档
 
-两种方式对比：
+三种方式对比：
 
-| 方式 | 优点 | 推荐场景 |
-|------|------|---------|
-| **上传 Markdown 文件** | 简单高效、格式完整保留 | 批量创建文档、Markdown 内容发布 |
-| **块接口 (page + blocks)** | 精确控制格式、可实时编辑 | 需要程序化编辑文档内容 |
+| 方式 | 优点 | 缺点 | 推荐场景 |
+|------|------|------|---------|
+| **上传 Markdown 文件** | 简单高效 | 创建的是 file 类型，无法在线编辑 | 存档、批量导入 |
+| **Markdown → 在线文档** | 保留格式 + 可在线编辑 | 需要转换步骤 | **用户要求可编辑的在线文档时首选** |
+| **块接口手动构建** | 精确控制每个块 | 复杂、易出错 | 程序化修改已有文档内容 |
 
-**推荐方式：上传 Markdown 文件**
+**方式 A：上传 Markdown 文件**（创建为 file 类型，不可在线编辑）
 
-使用 `scripts/upload_file.sh` 脚本：
 ```bash
 source scripts/init.sh
 bash scripts/upload_file.sh ./document.md SPACE_ID [PARENT_ENTRY_ID]
 ```
+
+**方式 B：Markdown → 在线文档**（创建为 page 类型，可在线编辑）⭐ 推荐
+
+使用 `scripts/md_to_page.py` 脚本，自动将 Markdown 解析为 blocks 写入在线文档：
+
+```bash
+source scripts/init.sh
+
+# 创建新 page 并写入
+python3 scripts/md_to_page.py ./document.md --space-id SPACE_ID --parent-id PARENT_ID --name "文档标题"
+
+# 写入已有 page
+python3 scripts/md_to_page.py ./document.md --entry-id ENTRY_ID
+
+# 追加模式（不清空已有内容）
+python3 scripts/md_to_page.py ./document.md --entry-id ENTRY_ID --append
+```
+
+脚本特性：
+- 自动解析标题、段落、列表、代码块、引用块、分隔线等
+- **引用块(>)自动转为 callout 高亮块**（API 不支持 quote，改用 callout 模拟）
+- 内联样式：加粗、斜体、行内代码、链接
+- 自动分批提交（每批 ≤20 个顶层块），避免请求过大
+- 失败自动逐块重试
+- **更新已有页面时默认先清空再写入**（非 `--append` 模式），避免内容重复
+
+> **注意**：image 块不支持通过 API 创建，Markdown 中的图片引用会被忽略。如需图片，请在在线文档中手动插入。
 
 ### 4. AI 搜索与问答
 
@@ -206,11 +233,14 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/ai/qa" \
 1. **新建文档不传 parent_block_id**：直接插入内容到页面根节点
 2. **列表块字段名不同于类型名**：`bulleted_list` 用 `bulleted` 字段，`numbered_list` 用 `numbered` 字段
 3. **标题块字段需匹配**：`h1` 用 `heading1`，`h2` 用 `heading2`，不是 `text`
-4. **嵌套块必须使用 children 和 block_id**：表格/引用/高亮块通过临时 ID 建立父子关系
-5. **不支持嵌套的类型**：`h1`-`h5`、`code`、`image`、`attachment`、`video`、`divider`、`mermaid`、`plantuml`
-6. **image 块不支持通过 API 创建**：blocks API 不支持 `image` block_type，暂无法通过 API 在文档中插入图片。上传含图片引用的 MD 文件时，本地图片路径将保持原样（待 API 支持后更新）
-7. **文件夹类型用 `folder`**：创建文件夹时 `entry_type` 必须使用 `folder`（不是 `directory`）
-8. **file 类型 name 必须带后缀**：如 `文档标题.md`、`image.png`
+4. **嵌套块的 `children` 和 `block_id` 只在块自身声明，不要放到 payload 顶层**：嵌套块（callout/table/toggle 等）通过块自身的 `block_id` + `children` 字段建立父子关系。**不要**在 payload 顶层传 `children` 参数——payload 顶层的 `children` 会让 API 将这些块提升为页面根的第一批子节点，打乱 `descendant` 数组中的顺序，导致嵌套块跑到页面开头（而非按文档中的实际位置渲染）
+5. **quote 不在 API 支持列表中**：API 的合法 `block_type` 不包含 `quote`。Markdown 引用块（`>`）应转换为 `callout`（高亮块）模拟。`scripts/md_to_page.py` 已自动处理此转换
+6. **不支持嵌套的类型**：`h1`-`h5`、`code`、`image`、`attachment`、`video`、`divider`、`mermaid`、`plantuml`
+7. **image 块不支持通过 API 创建**：blocks API 不支持 `image` block_type，暂无法通过 API 在文档中插入图片。上传含图片引用的 MD 文件时，本地图片路径将保持原样（待 API 支持后更新）
+8. **文件夹类型用 `folder`**：创建文件夹时 `entry_type` 必须使用 `folder`（不是 `directory`）
+9. **file 类型 name 必须带后缀**：如 `文档标题.md`、`image.png`
+10. **块数较多时必须分批提交**：建议每批 ≤ 20 个顶层块。`scripts/md_to_page.py` 已内置分批逻辑
+11. **`descendant` 接口是追加语义，不是覆盖**：`POST blocks/descendant` 会在页面末尾追加新块，**不会**清除已有内容。更新已有页面时必须先获取所有块 ID 并逐个删除（`DELETE blocks/{block_id}`），否则每次写入都会产生重复内容。`scripts/md_to_page.py` 在非 `--append` 模式下已内置清空逻辑
 
 ## 常见错误排查
 
@@ -227,6 +257,8 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/ai/qa" \
 | 属性设置静默失败 | value 传了选项 key 而非文本值 | value 数组中传选项的**显示文本**（如 `"互联网参考"`），不是 key（如 `c0jp3b6qyh`）。传 key 返回 200 但值为空 |
 | 属性设置 400 错误 | 请求体格式不对 | 必须使用 JSON:API 格式：`{"data":{"type":"kb_entry","attributes":{"属性ID":{"value":["选项文本"]}}}}` |
 | PATCH 重命名 404 | 文件类型条目不支持 PATCH 重命名 | file 类型条目创建后名称无法通过 API 修改，需在上传时就使用正确的文件名（`upload_file.sh` 会用文件的本地文件名） |
+| 页面内容出现重复 | `POST blocks/descendant` 是追加语义 | 更新页面前必须先清空已有块（GET children → DELETE 逐个删除），或使用 `md_to_page.py` 的默认模式（自动清空后写入）。只有明确追加时才用 `--append` |
+| 嵌套块（callout/table）跑到页面开头 | payload 顶层传了 `children` 参数 | **不要**在 payload 顶层传 `children`。嵌套块的父子关系只通过块自身的 `block_id` + `children` 建立。payload 顶层的 `children` 会让 API 将声明的块提升为页面根的第一批子节点，打乱顺序 |
 
 ## 经验案例
 
@@ -288,6 +320,43 @@ curl -X PUT "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/{entry_id}/proper
 | PUT 返回 200 但属性值为空 | `value` 传了选项的 key（如 `c0jp3b6qyh`） | 改为传选项的**显示文本**（如 `"互联网参考"`）|
 | PUT 返回 400 `data/data.attributes 不能为空` | 请求体用了 `{"properties": [...]}` 格式 | 必须用 JSON:API 格式：`{"data":{"type":"kb_entry","attributes":{...}}}` |
 | 属性 ID 和选项 key 的区别 | 属性 ID 是属性本身的 UUID，选项 key 是选项的标识符 | GET `/kb/properties/{id}` 获取属性详情和选项列表 |
+
+### 在线文档更新导致内容重复（严重）
+
+**场景**：使用 `md_to_page.py --entry-id` 更新已有在线文档时，页面内容出现 2~4 倍的重复。
+
+**根因分析**：
+
+Blocks API 的 `POST /kb/page/entries/{id}/blocks/descendant` 是**追加**语义——它不会覆盖已有内容，而是在页面末尾追加新块。脚本最初没有清空逻辑，每次运行都会向已有页面追加完整内容。再加上首次写入部分失败后重试，最终导致页面累积了 580 个块（正常应为 ~147 个）。
+
+**问题暴露的时间线**：
+1. 第一次写入：部分块因 `quote` 类型不被支持而失败 → 修复后重试
+2. 第二次写入：全部成功，但此时内容已是两份
+3. 后续调试中又触发了几次写入 → 内容膨胀到 4 倍
+
+**修复措施**：
+
+1. **`md_to_page.py` 新增 `clear_page_blocks()`**：非 `--append` 模式下，写入前先删除页面所有已有根块
+2. **使用并行删除**（`ThreadPoolExecutor(max_workers=10)`）+ 多轮循环，确保大量块也能在合理时间内清空
+3. **API 返回格式与预期不同**（踩坑见下表）
+
+**踩坑记录**：
+
+| 问题 | 原因 | 解决方案 |
+|------|------|---------|
+| **更新已有页面导致内容重复** | Blocks `descendant` API 是追加语义，不会覆盖已有内容 | 更新前先调用 `GET blocks/children` 获取所有块 ID，逐个 `DELETE` 清空，再写入新内容。`--append` 参数跳过清空 |
+| **清空时 `str has no attribute get`** | `blocks/children` API 返回 `{"data": {"blocks": [...]}}` 而非 `{"data": [...]}` | 用 `resp["data"]["blocks"]` 取块列表，不是 `resp["data"]` |
+| **块 ID 字段名错误** | 块的唯一标识字段是 `block_id`，不是 `id` | 删除时用 `block["block_id"]` |
+| **逐个删除太慢（580 块超时）** | 串行 HTTP 请求，每个约 200ms | 改用 `ThreadPoolExecutor(max_workers=10)` 并行删除，循环多轮直到清空 |
+| **嵌套块（callout）跑到页面最开头** | payload 顶层传了 `children: ["callout-xxx"]`，API 将其提升为页面根的第一批子节点 | **不要**在 payload 顶层传 `children`。嵌套块的父子关系只通过块自身的 `block_id` + `children` 建立即可，API 会按 `descendant` 数组顺序渲染 |
+
+**核心教训**：
+
+> **对远程 API 的操作必须是幂等的**。写入内容前，如果不是追加模式，必须先确认目标是否为空——不能假设 API 会自动覆盖。这类问题在本地文件操作中不会出现（`write` 默认覆盖），但在 API 场景中极其常见。
+>
+> **首次集成新 API 时，必须验证**：该接口是"覆盖"还是"追加"语义？失败重试是否会产生副作用？
+>
+> **API 参数的语义不能想当然**。`descendant` 请求体中的 `children` 参数看似用于声明嵌套块关系，但实际含义是"**指定页面根节点的第一级子块**"——它会改变块的渲染位置。嵌套块（callout/table）的父子关系应该只在块自身声明（`block_id` + `children`），不需要也不应该在 payload 顶层重复声明。**遇到 API 行为不符合预期时，先做小规模对照实验（传/不传某参数），再应用到完整数据**。
 
 ## 详细 API 参考
 

@@ -12,7 +12,7 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries" \
     "data": {
       "type": "kb_entry",
       "attributes": {
-        "entry_type": "directory",
+        "entry_type": "folder",
         "name": "文件夹名称"
       },
       "relationships": {

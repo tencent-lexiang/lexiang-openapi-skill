@@ -16,7 +16,7 @@
 |------|------|------|------|
 | parent_block_id | String | 否 | 父块 ID。**留空则插入到页面根节点** |
 | index | Int | 否 | 插入位置索引（从 0 开始） |
-| children | Array | 嵌套块必填 | 第一级子块的临时 ID 列表 |
+| children | Array | 见说明 | ⚠️ **payload 顶层的 children 表示"页面根节点的第一级子块"，会将声明的块提升到页面开头**。嵌套块的父子关系应只在块自身的 `children` 字段声明（配合 `block_id`），**不要**在 payload 顶层传 `children`，否则嵌套块渲染位置会错乱 |
 | descendant | Array | 是 | 所有待创建块的数组 |
 
 > **提示**：对于新建的空白文档，**不传 parent_block_id** 即可直接插入内容到页面根节点。
@@ -30,9 +30,29 @@
 | [内容字段] | 根据 block_type 不同使用不同字段 |
 
 **块类型**:
-`p`(段落), `h1`-`h5`(标题), `code`(代码), `table`(表格), `table_cell`(表格单元格), `task`(任务), `callout`(高亮块), `toggle`(折叠块), `bulleted_list`(无序列表), `numbered_list`(有序列表), `divider`(分隔线), `column_list`(分栏), `column`(列), `mermaid`, `plantuml`
+
+| 类型 | 说明 | 嵌套 | 内容字段 |
+|------|------|------|---------|
+| `p` | 段落 | 否 | `text` |
+| `h1`-`h5` | 标题 | 否 | `heading1`-`heading5`（注意不是 `text`） |
+| `code` | 代码块 | 否 | `code` (含 `language`, `content`) |
+| `quote` | 引用块 | - | ⚠️ **API 实际不支持**，不在合法 block_type 列表中。用 `callout` 替代 |
+| `callout` | 高亮块 | **是** | `callout` (含 `background_color`, `icon`) |
+| `toggle` | 折叠块 | **是** | - |
+| `table` | 表格 | **是** | `table` (含 `row_size`, `column_size` 等) |
+| `table_cell` | 表格单元格 | **是** | `table_cell` (含 `align` 等) |
+| `task` | 任务块 | 否 | `task` (含 `name`, `done` 等) |
+| `bulleted_list` | 无序列表 | 否 | `bulleted`（注意不是 `bulleted_list`） |
+| `numbered_list` | 有序列表 | 否 | `numbered`（注意不是 `numbered_list`） |
+| `divider` | 分隔线 | 否 | 无 |
+| `column_list` | 分栏 | **是** | - |
+| `column` | 列 | **是** | - |
+| `mermaid` | Mermaid 图 | 否 | - |
+| `plantuml` | PlantUML 图 | 否 | - |
 
 **不支持嵌套子块的类型**: `h1`-`h5`, `code`, `image`, `attachment`, `video`, `divider`, `mermaid`, `plantuml`
+
+> ⚠️ **嵌套块**（quote, callout, toggle, table 等）必须使用 `children` + `block_id` 的方式创建，不能只传一个扁平的 block。详见下方引用块、高亮块、表格示例。
 
 ---
 
@@ -97,29 +117,17 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/kb/page/entries/{entry_id}/
 ```
 
 ### 引用块（嵌套结构）
-```json
-{
-  "children": ["quote-1"],
-  "descendant": [
-    {
-      "block_id": "quote-1",
-      "block_type": "quote",
-      "children": ["quote-text-1"]
-    },
-    {
-      "block_id": "quote-text-1",
-      "block_type": "p",
-      "text": {"elements": [{"text_run": {"content": "引用文本"}}]}
-    }
-  ]
-}
-```
+
+> ⚠️ API 不支持 `quote` block_type，改用 `callout` 模拟。见下方高亮块示例。
 
 ### 高亮块 (Callout)
+
+> ⚠️ **不要**在 payload 顶层传 `children`，否则 callout 会被提升到页面开头。嵌套关系只在块自身声明即可。
+
 ```json
 {
-  "children": ["callout-1"],
   "descendant": [
+    {"block_type": "p", "text": {"elements": [{"text_run": {"content": "callout 前的段落"}}]}},
     {
       "block_id": "callout-1",
       "block_type": "callout",
@@ -129,11 +137,14 @@ curl -X POST "https://lxapi.lexiangla.com/cgi-bin/v1/kb/page/entries/{entry_id}/
     {
       "block_id": "callout-text-1",
       "block_type": "p",
-      "text": {"elements": [{"text_run": {"content": "警告提示"}}]}
-    }
+      "text": {"elements": [{"text_run": {"content": "callout 内容"}}]}
+    },
+    {"block_type": "p", "text": {"elements": [{"text_run": {"content": "callout 后的段落"}}]}}
   ]
 }
 ```
+
+> 注意：嵌套块的父子关系通过块自身的 `block_id` + `children` 建立。API 按 `descendant` 数组顺序渲染，callout 会正确出现在两个段落之间。
 
 ### 无序列表
 ```json
