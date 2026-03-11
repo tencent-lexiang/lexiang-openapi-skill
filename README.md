@@ -2,6 +2,13 @@
 
 <p align="center">📚 适用于 AI Agent 的腾讯乐享知识库 API 技能包</p>
 
+> ### 🔌 推荐优先使用 MCP 方式接入乐享知识库
+>
+> - **支持 MCP 协议的 Agent**（CodeBuddy、Cursor、Claude Desktop 等）：配置参考 👉 [lexiangla.com/mcp](https://lexiangla.com/mcp)
+> - **OpenClaw 用户**：配置参考 👉 [lexiang-mcp-skill](https://github.com/tencent-lexiang/lexiang-mcp-skill)
+>
+> 当你的 Agent 不支持上述两种 MCP 方式时，再考虑使用本项目（lexiang-openapi-skill）通过 REST API 接入。
+
 ## 关于腾讯乐享
 
 [腾讯乐享](https://lexiang.tencent.com/?event_type=link_exchange&event_channel=skill&event_detail=github) 是腾讯旗下的企业级 AI 知识管理平台，融合大模型能力，为企业提供知识库管理、团队协作、智能问答、AI 创作等一站式知识服务。
@@ -114,6 +121,13 @@ MIT
 # Tencent Lexiang Knowledge Base Skill
 
 <p align="center">📚 Tencent Lexiang Knowledge Base API Skill for AI Agents</p>
+
+> ### 🔌 Prefer MCP for Lexiang Knowledge Base Integration
+>
+> - **Agents with MCP support** (CodeBuddy, Cursor, Claude Desktop, etc.): 👉 [lexiangla.com/mcp](https://lexiangla.com/mcp)
+> - **OpenClaw users**: 👉 [lexiang-mcp-skill](https://github.com/tencent-lexiang/lexiang-mcp-skill)
+>
+> Only consider this project (lexiang-openapi-skill) when your Agent does not support MCP.
 
 ## About Tencent Lexiang
 
