@@ -157,13 +157,15 @@ This Skill provides AI Agents with full API integration for Tencent Lexiang Know
 
 ### Option 2: OpenClaw Installation
 
+> 💡 If you're using OpenClaw, we recommend the MCP version: [lexiang-mcp-skill](https://github.com/tencent-lexiang/lexiang-mcp-skill) for more complete functionality.
+
 ```bash
-openclaw skills install github:tencent-lexiang/lexiang-skill
+openclaw skills install github:tencent-lexiang/lexiang-openapi-skill
 ```
 
 ### Option 3: Manual Integration
 
-Provide the contents of `SKILL.md` as a System Prompt or Context to your AI Agent. You can also download the zip package from [Releases](https://github.com/ajaxhe/lexiang-skill/releases).
+Provide the contents of `SKILL.md` as a System Prompt or Context to your AI Agent. You can also download the zip package from [Releases](https://github.com/tencent-lexiang/lexiang-openapi-skill/releases).
 
 ## Credential Configuration
 

@@ -3,7 +3,7 @@
 # 并通过 API 获取详细信息
 #
 # 使用方式：
-#   source scripts/parse_url.sh <乐享URL>
+#   source scripts/parse_url.sh <乐享URL> [--content] [--format=FORMAT] [--output=FILE]
 #
 # 支持的 URL 格式：
 #   https://lexiangla.com/spaces/{space_id}?company_from=xxx
@@ -21,10 +21,41 @@
 #   LEXIANG_PARSED_NAME     - 资源名称
 #   LEXIANG_PARSED_ROOT_ENTRY_ID - 根节点 ID（space 类型时可用）
 
-URL="$1"
+URL=""
+SHOW_CONTENT=0
+CONTENT_FORMAT="markdown"
+CONTENT_OUTPUT=""
+
+# 解析参数
+for arg in "$@"; do
+  case "$arg" in
+    --content)
+      SHOW_CONTENT=1
+      ;;
+    --format=*)
+      CONTENT_FORMAT="${arg#--format=}"
+      ;;
+    --output=*)
+      CONTENT_OUTPUT="${arg#--output=}"
+      ;;
+    -*)
+      # 未知选项，忽略
+      ;;
+    *)
+      if [ -z "$URL" ]; then
+        URL="$arg"
+      fi
+      ;;
+  esac
+done
 
 if [ -z "$URL" ]; then
-  echo "用法: source scripts/parse_url.sh <乐享URL>"
+  echo "用法: source scripts/parse_url.sh <乐享URL> [--content] [--format=markdown|html|text] [--output=FILE]"
+  echo ""
+  echo "选项:"
+  echo "  --content          解析后直接输出文档内容（仅 entry 类型 URL 有效）"
+  echo "  --format=FORMAT    内容输出格式: markdown（默认）、html、text"
+  echo "  --output=FILE      将内容保存到文件"
   echo ""
   echo "支持的 URL 格式："
   echo "  知识库: https://lexiangla.com/spaces/{space_id}?company_from=xxx"
@@ -38,18 +69,18 @@ unset LEXIANG_PARSED_TYPE LEXIANG_PARSED_ID LEXIANG_PARSED_SPACE_ID
 unset LEXIANG_PARSED_TEAM_ID LEXIANG_PARSED_NAME LEXIANG_PARSED_ROOT_ENTRY_ID
 
 # 去掉 scheme+host 和查询参数，提取路径部分
-URL_PATH=$(echo "$URL" | sed -E 's|https?://[^/]*||' | sed 's|?.*||')
+URL_PATH=$(printf '%s' "$URL" | sed -E 's|https?://[^/]*||' | sed 's|?.*||')
 
 # 解析 URL 类型和 ID
-if echo "$URL_PATH" | grep -qE '^/spaces/[a-f0-9]+'; then
+if printf '%s' "$URL_PATH" | grep -qE '^/spaces/[a-f0-9]+'; then
   LEXIANG_PARSED_TYPE="space"
-  LEXIANG_PARSED_ID=$(echo "$URL_PATH" | sed 's|/spaces/\([a-f0-9]*\).*|\1|')
-elif echo "$URL_PATH" | grep -qE '^/pages/[a-f0-9]+'; then
+  LEXIANG_PARSED_ID=$(printf '%s' "$URL_PATH" | sed 's|/spaces/\([a-f0-9]*\).*|\1|')
+elif printf '%s' "$URL_PATH" | grep -qE '^/pages/[a-f0-9]+'; then
   LEXIANG_PARSED_TYPE="entry"
-  LEXIANG_PARSED_ID=$(echo "$URL_PATH" | sed 's|/pages/\([a-f0-9]*\).*|\1|')
-elif echo "$URL_PATH" | grep -qE '^/t/[a-f0-9]+'; then
+  LEXIANG_PARSED_ID=$(printf '%s' "$URL_PATH" | sed 's|/pages/\([a-f0-9]*\).*|\1|')
+elif printf '%s' "$URL_PATH" | grep -qE '^/t/[a-f0-9]+'; then
   LEXIANG_PARSED_TYPE="team"
-  LEXIANG_PARSED_ID=$(echo "$URL_PATH" | sed 's|/t/\([a-f0-9]*\).*|\1|')
+  LEXIANG_PARSED_ID=$(printf '%s' "$URL_PATH" | sed 's|/t/\([a-f0-9]*\).*|\1|')
 else
   echo "错误：无法识别的 URL 格式: $URL"
   echo "支持 /spaces/{id}、/pages/{id}、/t/{id} 格式"
@@ -68,6 +99,11 @@ if [ -z "$LEXIANG_TOKEN" ]; then
   return 0 2>/dev/null || exit 0
 fi
 
+# 辅助函数：安全地将变量传给 jq（避免 zsh echo 对 Unicode 的编码问题）
+_jq_parse() {
+  printf '%s' "$1" | jq -r "$2"
+}
+
 # 通过 API 获取详细信息
 echo ""
 echo "📡 查询 API 获取详细信息..."
@@ -76,9 +112,9 @@ if [ "$LEXIANG_PARSED_TYPE" = "space" ]; then
   RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/spaces/$LEXIANG_PARSED_ID" \
     -H "Authorization: Bearer $LEXIANG_TOKEN")
 
-  LEXIANG_PARSED_NAME=$(echo "$RESP" | jq -r '.data.attributes.name // empty')
-  LEXIANG_PARSED_ROOT_ENTRY_ID=$(echo "$RESP" | jq -r '.data.attributes.root_entry_id // .data.relationships.root_entry.data.id // empty')
-  LEXIANG_PARSED_TEAM_ID=$(echo "$RESP" | jq -r '.data.relationships.team.data.id // empty')
+  LEXIANG_PARSED_NAME=$(_jq_parse "$RESP" '.data.attributes.name // empty')
+  LEXIANG_PARSED_ROOT_ENTRY_ID=$(_jq_parse "$RESP" '.data.attributes.root_entry_id // .data.relationships.root_entry.data.id // empty')
+  LEXIANG_PARSED_TEAM_ID=$(_jq_parse "$RESP" '.data.relationships.team.data.id // empty')
   LEXIANG_PARSED_SPACE_ID="$LEXIANG_PARSED_ID"
 
   if [ -n "$LEXIANG_PARSED_NAME" ] && [ "$LEXIANG_PARSED_NAME" != "null" ]; then
@@ -89,7 +125,7 @@ if [ "$LEXIANG_PARSED_TYPE" = "space" ]; then
       echo "  👥 团队 ID:     $LEXIANG_PARSED_TEAM_ID"
   else
     echo "错误：无法获取知识库信息"
-    echo "$RESP" | jq . 2>/dev/null || echo "$RESP"
+    _jq_parse "$RESP" '.' 2>/dev/null || printf '%s\n' "$RESP"
     return 1 2>/dev/null || exit 1
   fi
 
@@ -97,21 +133,21 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
   RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/$LEXIANG_PARSED_ID" \
     -H "Authorization: Bearer $LEXIANG_TOKEN")
 
-  LEXIANG_PARSED_NAME=$(echo "$RESP" | jq -r '.data.attributes.name // empty')
-  ENTRY_TYPE=$(echo "$RESP" | jq -r '.data.attributes.entry_type // empty')
-  LEXIANG_PARSED_SPACE_ID=$(echo "$RESP" | jq -r '.data.relationships.space.data.id // empty')
+  LEXIANG_PARSED_NAME=$(_jq_parse "$RESP" '.data.attributes.name // empty')
+  ENTRY_TYPE=$(_jq_parse "$RESP" '.data.attributes.entry_type // empty')
+  LEXIANG_PARSED_SPACE_ID=$(_jq_parse "$RESP" '.data.relationships.space.data.id // empty')
 
   # 如果 API 没直接返回 space_id，通过 parent 链向上查找 root entry
   if [ -z "$LEXIANG_PARSED_SPACE_ID" ] || [ "$LEXIANG_PARSED_SPACE_ID" = "null" ]; then
     # 先检查当前 entry 本身是否就是 root
-    CURRENT_TYPE=$(echo "$RESP" | jq -r '.data.attributes.entry_type // empty')
+    CURRENT_TYPE=$(_jq_parse "$RESP" '.data.attributes.entry_type // empty')
     if [ "$CURRENT_TYPE" = "root" ]; then
       ROOT_ENTRY_ID="$LEXIANG_PARSED_ID"
     else
       ROOT_ENTRY_ID=""
-      PARENT_ID=$(echo "$RESP" | jq -r '.data.relationships.parent.data.id // empty')
-      # 先检查 included 中是否已有 root 类型的祖先（可直接获取，无需额外请求）
-      INCLUDED_ROOT=$(echo "$RESP" | jq -r '.included[]? | select(.attributes.entry_type == "root") | .id' | head -1)
+      PARENT_ID=$(_jq_parse "$RESP" '.data.relationships.parent.data.id // empty')
+      # 先检查 included 中是否已有 root 类型的祖先
+      INCLUDED_ROOT=$(_jq_parse "$RESP" '.included[]? | select(.attributes.entry_type == "root") | .id' | head -1)
       if [ -n "$INCLUDED_ROOT" ] && [ "$INCLUDED_ROOT" != "null" ]; then
         ROOT_ENTRY_ID="$INCLUDED_ROOT"
       else
@@ -119,17 +155,17 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
         while [ -n "$PARENT_ID" ] && [ "$PARENT_ID" != "null" ] && [ $WALK_COUNT -lt 10 ]; do
           PARENT_RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/entries/$PARENT_ID" \
             -H "Authorization: Bearer $LEXIANG_TOKEN")
-          PARENT_TYPE=$(echo "$PARENT_RESP" | jq -r '.data.attributes.entry_type // empty')
+          PARENT_TYPE=$(_jq_parse "$PARENT_RESP" '.data.attributes.entry_type // empty')
           if [ "$PARENT_TYPE" = "root" ]; then
             ROOT_ENTRY_ID="$PARENT_ID"
             break
           fi
-          INCLUDED_ROOT=$(echo "$PARENT_RESP" | jq -r '.included[]? | select(.attributes.entry_type == "root") | .id' | head -1)
+          INCLUDED_ROOT=$(_jq_parse "$PARENT_RESP" '.included[]? | select(.attributes.entry_type == "root") | .id' | head -1)
           if [ -n "$INCLUDED_ROOT" ] && [ "$INCLUDED_ROOT" != "null" ]; then
             ROOT_ENTRY_ID="$INCLUDED_ROOT"
             break
           fi
-          NEW_PARENT=$(echo "$PARENT_RESP" | jq -r '.data.relationships.parent.data.id // empty')
+          NEW_PARENT=$(_jq_parse "$PARENT_RESP" '.data.relationships.parent.data.id // empty')
           if [ -z "$NEW_PARENT" ] || [ "$NEW_PARENT" = "null" ] || [ "$NEW_PARENT" = "$PARENT_ID" ]; then
             ROOT_ENTRY_ID="$PARENT_ID"
             break
@@ -152,27 +188,23 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
 
       # 缓存未命中，尝试通过已知 team_id 或 teams API 查找
       if [ -z "$LEXIANG_PARSED_SPACE_ID" ] || [ "$LEXIANG_PARSED_SPACE_ID" = "null" ]; then
-        # 收集要搜索的 team_id 列表
         TEAM_IDS=""
-        # 从 credentials 配置获取默认 team_id
         CRED_FILE="$HOME/.config/lexiang/credentials"
         if [ -f "$CRED_FILE" ]; then
           DEFAULT_TEAM_ID=$(jq -r '.team_id // empty' "$CRED_FILE" 2>/dev/null)
           [ -n "$DEFAULT_TEAM_ID" ] && TEAM_IDS="$DEFAULT_TEAM_ID"
         fi
-        # 也从缓存文件中收集已知的 team_id
         if [ -f "$CACHE_FILE" ]; then
           CACHED_TEAMS=$(jq -r '[.[].team_id] | unique | .[]' "$CACHE_FILE" 2>/dev/null)
           for ct in $CACHED_TEAMS; do
-            echo "$TEAM_IDS" | grep -q "$ct" || TEAM_IDS="$TEAM_IDS $ct"
+            printf '%s' "$TEAM_IDS" | grep -q "$ct" || TEAM_IDS="$TEAM_IDS $ct"
           done
         fi
-        # 如果没有任何已知 team_id，尝试 teams API
         if [ -z "$TEAM_IDS" ]; then
           TEAMS_RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/teams?limit=50" \
             -H "Authorization: Bearer $LEXIANG_TOKEN" \
             -H "x-staff-id: ${LEXIANG_STAFF_ID:-}")
-          TEAM_IDS=$(echo "$TEAMS_RESP" | jq -r '.data[]?.id' 2>/dev/null)
+          TEAM_IDS=$(_jq_parse "$TEAMS_RESP" '.data[]?.id' 2>/dev/null)
         fi
 
         for tid in $TEAM_IDS; do
@@ -180,12 +212,11 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
           SPACES_RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/spaces?team_id=$tid&limit=100" \
             -H "Authorization: Bearer $LEXIANG_TOKEN" \
             -H "x-staff-id: ${LEXIANG_STAFF_ID:-}")
-          FOUND_SPACE=$(echo "$SPACES_RESP" | jq -r --arg rid "$ROOT_ENTRY_ID" \
+          FOUND_SPACE=$(printf '%s' "$SPACES_RESP" | jq -r --arg rid "$ROOT_ENTRY_ID" \
             '.data[]? | select(.relationships.root_entry.data.id == $rid or .attributes.root_entry_id == $rid) | .id' | head -1)
           if [ -n "$FOUND_SPACE" ]; then
             LEXIANG_PARSED_SPACE_ID="$FOUND_SPACE"
             LEXIANG_PARSED_TEAM_ID="$tid"
-            # 写入缓存
             mkdir -p "$(dirname "$CACHE_FILE")"
             if [ -f "$CACHE_FILE" ]; then
               TMP=$(jq --arg rid "$ROOT_ENTRY_ID" --arg sid "$FOUND_SPACE" --arg tid "$tid" \
@@ -194,7 +225,7 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
               TMP=$(jq -n --arg rid "$ROOT_ENTRY_ID" --arg sid "$FOUND_SPACE" --arg tid "$tid" \
                 '{($rid): {"space_id": $sid, "team_id": $tid}}')
             fi
-            echo "$TMP" > "$CACHE_FILE"
+            printf '%s\n' "$TMP" > "$CACHE_FILE"
             break
           fi
         done
@@ -206,9 +237,9 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
   if [ -n "$LEXIANG_PARSED_SPACE_ID" ] && [ "$LEXIANG_PARSED_SPACE_ID" != "null" ]; then
     SPACE_RESP=$(curl -s "https://lxapi.lexiangla.com/cgi-bin/v1/kb/spaces/$LEXIANG_PARSED_SPACE_ID" \
       -H "Authorization: Bearer $LEXIANG_TOKEN")
-    LEXIANG_PARSED_TEAM_ID=$(echo "$SPACE_RESP" | jq -r '.data.relationships.team.data.id // empty')
-    LEXIANG_PARSED_ROOT_ENTRY_ID=$(echo "$SPACE_RESP" | jq -r '.data.attributes.root_entry_id // .data.relationships.root_entry.data.id // empty')
-    SPACE_NAME=$(echo "$SPACE_RESP" | jq -r '.data.attributes.name // empty')
+    LEXIANG_PARSED_TEAM_ID=$(_jq_parse "$SPACE_RESP" '.data.relationships.team.data.id // empty')
+    LEXIANG_PARSED_ROOT_ENTRY_ID=$(_jq_parse "$SPACE_RESP" '.data.attributes.root_entry_id // .data.relationships.root_entry.data.id // empty')
+    SPACE_NAME=$(_jq_parse "$SPACE_RESP" '.data.attributes.name // empty')
   fi
 
   if [ -n "$LEXIANG_PARSED_NAME" ] && [ "$LEXIANG_PARSED_NAME" != "null" ]; then
@@ -221,7 +252,7 @@ elif [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
       echo "  👥 团队 ID:     $LEXIANG_PARSED_TEAM_ID"
   else
     echo "错误：无法获取文档信息"
-    echo "$RESP" | jq . 2>/dev/null || echo "$RESP"
+    _jq_parse "$RESP" '.' 2>/dev/null || printf '%s\n' "$RESP"
     return 1 2>/dev/null || exit 1
   fi
 
@@ -230,7 +261,7 @@ elif [ "$LEXIANG_PARSED_TYPE" = "team" ]; then
     -H "Authorization: Bearer $LEXIANG_TOKEN" \
     -H "x-staff-id: ${LEXIANG_STAFF_ID:-}")
 
-  LEXIANG_PARSED_NAME=$(echo "$RESP" | jq -r '.data.attributes.name // empty')
+  LEXIANG_PARSED_NAME=$(_jq_parse "$RESP" '.data.attributes.name // empty')
   LEXIANG_PARSED_TEAM_ID="$LEXIANG_PARSED_ID"
 
   if [ -n "$LEXIANG_PARSED_NAME" ] && [ "$LEXIANG_PARSED_NAME" != "null" ]; then
@@ -244,3 +275,28 @@ fi
 
 export LEXIANG_PARSED_TYPE LEXIANG_PARSED_ID LEXIANG_PARSED_SPACE_ID
 export LEXIANG_PARSED_TEAM_ID LEXIANG_PARSED_NAME LEXIANG_PARSED_ROOT_ENTRY_ID
+
+# ── --content 选项：解析后直接获取内容 ──────────────────────────────
+if [ "$SHOW_CONTENT" = "1" ]; then
+  if [ "$LEXIANG_PARSED_TYPE" = "entry" ]; then
+    # 定位 get_content.sh：优先用 BASH_SOURCE，兼容 zsh source 场景
+    if [ -n "${BASH_SOURCE[0]:-}" ]; then
+      _PARSE_SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    elif [ -n "${(%):-%x}" ] 2>/dev/null; then
+      _PARSE_SCRIPT_DIR="$(cd "$(dirname "${(%):-%x}")" && pwd)"
+    else
+      # fallback: 尝试从 skill 的标准安装路径查找
+      _PARSE_SCRIPT_DIR="$HOME/.codebuddy/skills/lexiang/scripts"
+    fi
+    echo ""
+    if [ -n "$CONTENT_OUTPUT" ]; then
+      bash "$_PARSE_SCRIPT_DIR/get_content.sh" "$LEXIANG_PARSED_ID" --format "$CONTENT_FORMAT" --output "$CONTENT_OUTPUT"
+    else
+      bash "$_PARSE_SCRIPT_DIR/get_content.sh" "$LEXIANG_PARSED_ID" --format "$CONTENT_FORMAT"
+    fi
+    unset _PARSE_SCRIPT_DIR
+  else
+    echo ""
+    echo "⚠️  --content 选项仅支持 entry 类型 URL（pages/xxx），当前类型: $LEXIANG_PARSED_TYPE"
+  fi
+fi
